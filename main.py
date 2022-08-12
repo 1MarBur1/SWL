@@ -1,5 +1,6 @@
 from PyQt6.QtWidgets import QApplication, QPushButton, QMainWindow, QVBoxLayout, QWidget, QLabel, QColorDialog, QHBoxLayout
 from PyQt6.QtCore import QTimer
+from PyQt6.QtGui import *
 import sys
 import glob
 from time import sleep
@@ -38,8 +39,9 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.currentData = []
         ser.write(bytearray([0xFF]))
-        self.currentData = self.get_data()
-
+        self.get_data()
+ 
+        self.setStyleSheet("background-color: #12860a;" "color: #ffffff;")
         self.temp = QLabel("Температура воздуха: " + str(self.currentData[3]) + "°C")
         self.humidity = QLabel("Влажность воздуха: " + str(self.currentData[4]) + "%")
 
@@ -69,21 +71,27 @@ class MainWindow(QMainWindow):
         self.pumpButton = QPushButton("Включить помпу" if self.currentData[-6] == 0 else "Выключить помпу")
         self.pumpButton.clicked.connect(self.onPumpButtonClick)
 
+        self.buttonsLayout = QHBoxLayout()
+        self.buttonsLayout.addWidget(self.submitColor)
+        self.buttonsLayout.addWidget(self.pumpButton)
+
         self.windButton = QPushButton("Включить вентилятор" if self.currentData[-5] == 0 else "Выключить вентилятор")
         self.windButton.clicked.connect(self.onWindButtonClick)
 
         self.windowButton = QPushButton("Открыть окно" if self.currentData[-4] == 15 else "Закрыть окно")
         self.windowButton.clicked.connect(self.onWindowButtonClick)
+
+        self.buttonsLayout2 = QHBoxLayout()
+        self.buttonsLayout2.addWidget(self.windButton)
+        self.buttonsLayout2.addWidget(self.windowButton)
         
         layout = QVBoxLayout()
         layout.addLayout(self.airLayout)
         layout.addLayout(self.soilLayout)
         layout.addLayout(self.otherLayout)
         layout.addWidget(self.color)
-        layout.addWidget(self.submitColor)
-        layout.addWidget(self.pumpButton)
-        layout.addWidget(self.windButton)
-        layout.addWidget(self.windowButton)
+        layout.addLayout(self.buttonsLayout)
+        layout.addLayout(self.buttonsLayout2)
 
         container = QWidget()
         container.setLayout(layout)
@@ -99,7 +107,7 @@ class MainWindow(QMainWindow):
 
     def updateData(self):
         ser.write(bytearray([0xFF]))
-        self.currentData = self.get_data()
+        self.get_data()
         self.reloadSensors()
 
     def reloadSensors(self):
@@ -120,18 +128,18 @@ class MainWindow(QMainWindow):
         _writeRGB.append(_currentColor.blue())
 
         ser.write(_writeRGB)
-        self.currentData = self.get_data()
+        self.get_data()
         self.color.show()
         
     def onPumpButtonClick(self):
         ser.write(bytearray([0xA0, 0x1]))
         self.reloadSensors()
-        self.currentData = self.get_data()
+        self.get_data()
         self.pumpButton.setText("Включить помпу" if self.currentData[-6] == 0 else "Выключить помпу")
 
     def onWindButtonClick(self):
         ser.write(bytearray([0xA1, 0x1]))
-        self.currentData = self.get_data()
+        self.get_data()
         self.reloadSensors()
         self.windButton.setText("Включить вентилятор" if self.currentData[-5] == 0 else "Выключить вентилятор")
 
@@ -143,14 +151,16 @@ class MainWindow(QMainWindow):
             ser.write(bytearray([0xA2, 0xF]))
             self.windowButton.setText("Открыть окно")
 
-        self.currentData = self.get_data()
+        self.get_data()
 
     def get_data (self):
         sleep(0.1)
-        _currentData = str(ser.read_all())[2:-5]
-        currentDataList = list(map(float, _currentData.split('|')))
-        print(currentDataList)
-        return currentDataList
+        _currentData = str(ser.read_all())
+        _currentData = _currentData[2:_currentData.find('\\r\\n')]
+        if (_currentData!=''):
+            currentDataList = list(map(float, _currentData.split('|')))
+            self.currentData = currentDataList
+            print(currentDataList)
 
 
 app = QApplication(sys.argv)
